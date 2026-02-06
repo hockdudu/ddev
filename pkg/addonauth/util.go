@@ -6,20 +6,20 @@ import (
 	"strings"
 )
 
-func normalizeRemote(remote string) (error, string) {
+func normalizeRemote(remote string) (string, error) {
 	remote = strings.ToLower(remote)
 
 	if strings.HasPrefix(remote, "http://") || strings.HasPrefix(remote, "https://") {
 		// TODO: What does Composer do? Can we safely validate?
-		return errors.New("remote must not have a protocol prefix (e.g. http:// or https://)"), ""
+		return "", errors.New("remote must not have a protocol prefix (e.g. http:// or https://)")
 	}
 
 	// TODO: Can we safely trim instead?
 	if strings.HasSuffix(remote, "/") {
-		return errors.New("remote must not have a trailing slash"), ""
+		return "", errors.New("remote must not have a trailing slash")
 	}
 
-	return nil, remote
+	return remote, nil
 }
 
 // TODO: Should we add paths as well?

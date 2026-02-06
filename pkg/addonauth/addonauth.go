@@ -20,7 +20,7 @@ type AuthMatcher interface {
 }
 
 var (
-	TypeMap = map[string]func(value *yaml.Node) (error, AuthMatcher){}
+	TypeMap = map[string]func(value *yaml.Node) (AuthMatcher, error){}
 )
 
 func (auth AddonAuth) UnmarshalYAML(value *yaml.Node) (err error) {
@@ -35,7 +35,7 @@ func (auth AddonAuth) UnmarshalYAML(value *yaml.Node) (err error) {
 		return fmt.Errorf("unknown auth type: %s", authType.Type)
 	}
 
-	err, matcher := matcherFunc(value)
+	matcher, err := matcherFunc(value)
 	if err != nil {
 		return err
 	}

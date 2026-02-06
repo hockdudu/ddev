@@ -31,28 +31,28 @@ func (customHeadersAuth *CustomHeadersAuth) String() string {
 }
 
 func init() {
-	TypeMap[CustomHeadersAuthType.Type] = func(value *yaml.Node) (error, AuthMatcher) {
+	TypeMap[CustomHeadersAuthType.Type] = func(value *yaml.Node) (AuthMatcher, error) {
 		customHeadersAuth := CustomHeadersAuth{}
 		customHeadersAuth.Type = CustomHeadersAuthType.Type
 
 		err := value.Decode(&customHeadersAuth)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		if customHeadersAuth.Remote == "" {
-			return errors.New("custom headers auth remote is missing"), nil
+			return nil, errors.New("custom headers auth remote is missing")
 		}
 
 		if len(customHeadersAuth.Headers) == 0 {
-			return errors.New("custom headers auth headers list is empty"), nil
+			return nil, errors.New("custom headers auth headers list is empty")
 		}
 
-		err, customHeadersAuth.Remote = normalizeRemote(customHeadersAuth.Remote)
+		customHeadersAuth.Remote, err = normalizeRemote(customHeadersAuth.Remote)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
-		return nil, &customHeadersAuth
+		return &customHeadersAuth, nil
 	}
 }

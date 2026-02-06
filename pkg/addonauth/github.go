@@ -29,24 +29,24 @@ func (gh *GitHubAuth) String() string {
 }
 
 func init() {
-	TypeMap[GithubAuthType.Type] = func(value *yaml.Node) (error, AuthMatcher) {
+	TypeMap[GithubAuthType.Type] = func(value *yaml.Node) (AuthMatcher, error) {
 		gitHubAuth := GitHubAuth{}
 		gitHubAuth.Type = GithubAuthType.Type
 
 		err := value.Decode(&gitHubAuth)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		if gitHubAuth.Remote == "" {
 			gitHubAuth.Remote = "github.com"
 		}
 
-		err, gitHubAuth.Remote = normalizeRemote(gitHubAuth.Remote)
+		gitHubAuth.Remote, err = normalizeRemote(gitHubAuth.Remote)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
-		return nil, &gitHubAuth
+		return &gitHubAuth, nil
 	}
 }

@@ -35,24 +35,24 @@ func (basicAuth *HttpBasicAuth) String() string {
 }
 
 func init() {
-	TypeMap[HttpBasicAuthType.Type] = func(value *yaml.Node) (error, AuthMatcher) {
+	TypeMap[HttpBasicAuthType.Type] = func(value *yaml.Node) (AuthMatcher, error) {
 		basicAuth := HttpBasicAuth{}
 		basicAuth.Type = HttpBasicAuthType.Type
 
 		err := value.Decode(&basicAuth)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		if basicAuth.Remote == "" {
-			return errors.New("basic auth remote is missing"), nil
+			return nil, errors.New("basic auth remote is missing")
 		}
 
-		err, basicAuth.Remote = normalizeRemote(basicAuth.Remote)
+		basicAuth.Remote, err = normalizeRemote(basicAuth.Remote)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
-		return nil, &basicAuth
+		return &basicAuth, nil
 	}
 }

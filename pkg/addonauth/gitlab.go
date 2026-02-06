@@ -30,24 +30,24 @@ func (gla *GitLabAuth) String() string {
 
 func init() {
 	// TODO: Normalize names? How is it called on Composer?
-	TypeMap[GitLabAuthType.Type] = func(value *yaml.Node) (error, AuthMatcher) {
+	TypeMap[GitLabAuthType.Type] = func(value *yaml.Node) (AuthMatcher, error) {
 		gitLabAuth := GitLabAuth{}
 		gitLabAuth.Type = GitLabAuthType.Type
 
 		err := value.Decode(&gitLabAuth)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		if gitLabAuth.Remote == "" {
 			gitLabAuth.Remote = "gitlab.com"
 		}
 
-		err, gitLabAuth.Remote = normalizeRemote(gitLabAuth.Remote)
+		gitLabAuth.Remote, err = normalizeRemote(gitLabAuth.Remote)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
-		return nil, &gitLabAuth
+		return &gitLabAuth, nil
 	}
 }

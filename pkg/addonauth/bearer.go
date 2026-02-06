@@ -30,28 +30,28 @@ func (bearerAuth *BearerAuth) String() string {
 }
 
 func init() {
-	TypeMap[BearerAuthType.Type] = func(value *yaml.Node) (error, AuthMatcher) {
+	TypeMap[BearerAuthType.Type] = func(value *yaml.Node) (AuthMatcher, error) {
 		bearerAuth := BearerAuth{}
 		bearerAuth.Type = BearerAuthType.Type
 
 		err := value.Decode(&bearerAuth)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		if bearerAuth.Remote == "" {
-			return errors.New("bearer auth remote is missing"), nil
+			return nil, errors.New("bearer auth remote is missing")
 		}
 
-		err, bearerAuth.Remote = normalizeRemote(bearerAuth.Remote)
+		bearerAuth.Remote, err = normalizeRemote(bearerAuth.Remote)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		if bearerAuth.Token == "" {
-			return errors.New("bearer token is missing"), nil
+			return nil, errors.New("bearer token is missing")
 		}
 
-		return nil, &bearerAuth
+		return &bearerAuth, nil
 	}
 }
