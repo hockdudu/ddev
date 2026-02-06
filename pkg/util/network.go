@@ -15,6 +15,7 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/ddev/ddev/pkg/github"
+	"github.com/ddev/ddev/pkg/globalconfig"
 	"github.com/ddev/ddev/pkg/output"
 	"github.com/hashicorp/go-retryablehttp"
 	"golang.org/x/term"
@@ -146,11 +147,41 @@ func DownloadFileExtended(destPath string, fileURL string, progressBar bool, sha
 			err = fmt.Errorf("creating request for file URL %s: %w", fileURL, reqErr)
 			return
 		}
+
+		authHeaders := map[string]string{}
+		for _, auth := range globalconfig.DdevAuth.Addon {
+			match, matchErr := auth.Matcher.Match(fileURL, authHeaders)
+			if matchErr != nil {
+				_ = outFile.Close()
+				err = fmt.Errorf("matching file URL %s: %w", fileURL, err)
+				return
+			}
+
+			if match {
+				Verbose("Adding auth headers for \"%s\" with authenticator \"%s\"", fileURL, auth.Matcher)
+				break
+			}
+		}
+
+		if len(authHeaders) == 0 {
+			Verbose("No auth headers added for %s", fileURL)
+		}
+
+		// TODO: Is okay to log auth headers here?
+		Verbose("Auth headers: %v", authHeaders)
+
+		for key, value := range authHeaders {
+			req.Header.Set(key, value)
+		}
+
+		// TODO: Move GitHub to external auth?
 		gitHubHeaders := github.GetGitHubHeaders(fileURL)
 		for key, value := range gitHubHeaders {
 			req.Header.Set(key, value)
 		}
 		resp, getErr := client.Do(req)
+
+		// TODO: Can we generalize this and try without tokens, should the installation with tokens fail?
 		if tokenErr := github.HasInvalidGitHubToken(resp); tokenErr != nil {
 			WarningOnce("Warning: %v, retrying without token", tokenErr)
 			for key := range gitHubHeaders {

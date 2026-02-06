@@ -9,9 +9,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/ddev/ddev/pkg/addonauth"
 	"github.com/ddev/ddev/pkg/globalconfig"
 	"github.com/ddev/ddev/pkg/output"
 	"github.com/ddev/ddev/pkg/util"
@@ -65,6 +67,110 @@ func TestDownloadFile(t *testing.T) {
 		err := util.DownloadFile(dest, ts.URL+"/"+fileName, false, ts.URL+"/badsha256sums.txt")
 		require.Error(t, err, "expected error due to SHA256 mismatch")
 		require.NoFileExistsf(t, dest, "expected file %s to be deleted after sha mismatch, but it exists", dest)
+	})
+}
+
+// TestDownloadFileWithAuth tests downloading a file with defined auth headers
+func TestDownloadFileWithAuth(t *testing.T) {
+	githubToken := "gh-token"
+	gitlabToken := "glpat-token"
+
+	basicUser := "ddev"
+	basicPass := "letmein"
+	basicB64 := "ZGRldjpsZXRtZWlu"
+
+	sampleContent := "hello world\n"
+
+	tsGh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectedAuthHeader := "token " + githubToken
+		if r.Header.Get("Authorization") == expectedAuthHeader {
+			_, _ = io.WriteString(w, sampleContent)
+		} else {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		}
+	}))
+	defer tsGh.Close()
+
+	tsGl := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectedAuthHeader := "Bearer " + gitlabToken
+		if r.Header.Get("Authorization") == expectedAuthHeader {
+			_, _ = io.WriteString(w, sampleContent)
+		} else {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		}
+	}))
+	defer tsGl.Close()
+
+	tsBasic := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectedAuthHeader := "Basic " + basicB64
+		if r.Header.Get("Authorization") == expectedAuthHeader {
+			_, _ = io.WriteString(w, sampleContent)
+		} else {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		}
+	}))
+	defer tsBasic.Close()
+
+	tsNormal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		} else {
+			_, _ = io.WriteString(w, sampleContent)
+		}
+	}))
+	defer tsNormal.Close()
+
+	globalconfig.DdevAuth.Addon = []addonauth.AddonAuth{
+		{
+			Matcher: &addonauth.GitHubAuth{
+				Remote: strings.TrimPrefix(tsGh.URL, "http://"),
+				Token:  githubToken,
+			},
+		},
+		{
+			Matcher: &addonauth.GitLabAuth{
+				Remote: strings.TrimPrefix(tsGl.URL, "http://"),
+				Token:  gitlabToken,
+			},
+		},
+		{
+			Matcher: &addonauth.HttpBasicAuth{
+				Remote:   strings.TrimPrefix(tsBasic.URL, "http://"),
+				Username: basicUser,
+				Password: basicPass,
+			},
+		},
+	}
+
+	defer func() {
+		globalconfig.DdevAuth.Addon = []addonauth.AddonAuth{}
+	}()
+
+	tmpDir := t.TempDir()
+
+	executeTest := func(t *testing.T, remote string) {
+		dest := filepath.Join(tmpDir, "example.txt")
+		err := util.DownloadFile(dest, remote+"/example.txt", false, "")
+		require.NoError(t, err)
+		content, err := os.ReadFile(dest)
+		require.NoError(t, err)
+		require.Equal(t, sampleContent, string(content))
+	}
+
+	t.Run("download file with gh auth", func(t *testing.T) {
+		executeTest(t, tsGh.URL)
+	})
+
+	t.Run("download file with gl auth", func(t *testing.T) {
+		executeTest(t, tsGl.URL)
+	})
+
+	t.Run("download file with basic auth", func(t *testing.T) {
+		executeTest(t, tsBasic.URL)
+	})
+
+	t.Run("download file without auth", func(t *testing.T) {
+		executeTest(t, tsNormal.URL)
 	})
 }
 
