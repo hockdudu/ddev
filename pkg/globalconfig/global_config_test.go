@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ddev/ddev/pkg/addonauth"
 	"github.com/ddev/ddev/pkg/dockerutil"
 	"github.com/ddev/ddev/pkg/exec"
 	"github.com/ddev/ddev/pkg/globalconfig"
@@ -17,6 +18,7 @@ import (
 	"github.com/ddev/ddev/pkg/versionconstants"
 	asrt "github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v4"
 )
 
 func init() {
@@ -292,5 +294,60 @@ func TestCheckForMultipleGlobalDdevDirs(t *testing.T) {
 		// Should not return error
 		err = globalconfig.CheckForMultipleGlobalDdevDirs()
 		require.NoError(t, err)
+	})
+}
+
+func TestAuthConfig(t *testing.T) {
+	configString :=
+		`addon:
+    - type: github
+      remote: github.com
+      token: gh-token
+    - type: custom-headers
+      remote: example.test
+      headers:
+        Authorization: Bearer example
+        X-Custom-Header: example
+`
+
+	configStruct := globalconfig.AuthConfig{
+		Addon: []addonauth.AddonAuth{
+			{
+				Matcher: &addonauth.GitHubAuth{
+					AuthType: addonauth.AuthType{
+						Type: "github",
+					},
+					Remote: "github.com",
+					Token:  "gh-token",
+				},
+			},
+			{
+				Matcher: &addonauth.CustomHeadersAuth{
+					AuthType: addonauth.AuthType{
+						Type: "custom-headers",
+					},
+					Remote: "example.test",
+					Headers: map[string]string{
+						"Authorization":   "Bearer example",
+						"X-Custom-Header": "example",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("UnmarshallYaml", func(t *testing.T) {
+		//var unmarshalled globalconfig.AuthConfig
+		unmarshalled := globalconfig.AuthConfig{}
+		err := yaml.Unmarshal([]byte(configString), &unmarshalled)
+		require.NoError(t, err)
+		//require.Len(t, unmarshalled, 2)
+	})
+
+	t.Run("MarshallYaml", func(t *testing.T) {
+		marshalled, err := yaml.Marshal(configStruct)
+		marshalledString := string(marshalled)
+		require.NoError(t, err)
+		require.Equal(t, configString, marshalledString)
 	})
 }

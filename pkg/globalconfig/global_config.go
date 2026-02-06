@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ddev/ddev/pkg/addonauth"
 	configTypes "github.com/ddev/ddev/pkg/config/types"
 	"github.com/ddev/ddev/pkg/globalconfig/types"
 	"github.com/ddev/ddev/pkg/nodeps"
@@ -25,11 +26,16 @@ const DdevGlobalConfigName = "global_config.yaml"
 // DdevProjectListFileName is the name of the global projects file.
 const DdevProjectListFileName = "project_list.yaml"
 
+// DdevAuthConfigName is the name of the auth config file.
+const DdevAuthConfigName = "auth.yaml"
+
 var (
 	// DdevGlobalConfig is the currently active global configuration struct
 	DdevGlobalConfig GlobalConfig
 	// DdevProjectList is the list of all existing DDEV projects
 	DdevProjectList map[string]*ProjectInfo
+	// DdevAuth is the configuration for authentication
+	DdevAuth AuthConfig
 )
 
 type ProjectInfo struct {
@@ -80,6 +86,11 @@ type GlobalConfig struct {
 	ProjectList              map[string]*ProjectInfo `yaml:"project_info,omitempty"`
 }
 
+// AuthConfig defines DDEV's auth.yaml config format
+type AuthConfig struct {
+	Addon []addonauth.AddonAuth `yaml:"addon,omitempty"`
+}
+
 // New returns a default GlobalConfig
 func New() GlobalConfig {
 	cfg := GlobalConfig{
@@ -116,6 +127,10 @@ func EnsureGlobalConfig() {
 	if err != nil {
 		output.UserErr.Fatalf("unable to read global projects list: %v", err)
 	}
+	err = ReadAuthConfig()
+	if err != nil {
+		output.UserErr.Fatalf("unable to read global auth config: %v", err)
+	}
 	// Using simple formatting means we don't use colors
 	if DdevGlobalConfig.SimpleFormatting {
 		_ = os.Setenv("NO_COLOR", "1")
@@ -131,6 +146,10 @@ func GetGlobalConfigPath() string {
 // GetProjectListPath gets the path to global projects file
 func GetProjectListPath() string {
 	return filepath.Join(GetGlobalDdevDir(), DdevProjectListFileName)
+}
+
+func GetAuthConfigPath() string {
+	return filepath.Join(GetGlobalDdevDir(), DdevAuthConfigName)
 }
 
 // GetDDEVBinDir returns the directory of the Mutagen config and binary
@@ -623,6 +642,58 @@ func WriteProjectList(projects map[string]*ProjectInfo) error {
 
 	// Write to projects file
 	err = os.WriteFile(GetProjectListPath(), projectsBytes, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ReadAuthConfig() error {
+	authConfigFile := GetAuthConfigPath()
+
+	// Can't use fileutil.FileExists() here because of import cycle.
+	if _, err := os.Stat(authConfigFile); err != nil {
+		// ~/.ddev doesn't exist and running as root (only ddev hostname could do this)
+		// Then create auth config.
+		if os.Geteuid() == 0 {
+			output.UserErr.Warning("Not reading auth config file because running with root privileges")
+			return nil
+		}
+
+		if os.IsNotExist(err) {
+			DdevAuth = AuthConfig{}
+			err := WriteAuthConfig(&DdevAuth)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	source, err := os.ReadFile(authConfigFile)
+	if err != nil {
+		return fmt.Errorf("unable to read DDEV auth file %s: %v", source, err)
+	}
+
+	expandedSource := os.ExpandEnv(string(source))
+
+	err = yaml.Unmarshal([]byte(expandedSource), &DdevAuth)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func WriteAuthConfig(auth *AuthConfig) error {
+	authBytes, err := yaml.Marshal(auth)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(GetAuthConfigPath(), authBytes, 0644)
 	if err != nil {
 		return err
 	}
