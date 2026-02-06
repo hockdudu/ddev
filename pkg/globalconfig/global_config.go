@@ -674,7 +674,7 @@ func ReadAuthConfig() error {
 
 	source, err := os.ReadFile(authConfigFile)
 	if err != nil {
-		return fmt.Errorf("unable to read DDEV auth file %s: %v", source, err)
+		return fmt.Errorf("unable to read DDEV auth file %s: %v", authConfigFile, err)
 	}
 
 	expandedSource := os.ExpandEnv(string(source))

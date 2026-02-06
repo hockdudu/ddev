@@ -153,7 +153,7 @@ func DownloadFileExtended(destPath string, fileURL string, progressBar bool, sha
 			match, matchErr := auth.Matcher.Match(fileURL, authHeaders)
 			if matchErr != nil {
 				_ = outFile.Close()
-				err = fmt.Errorf("matching file URL %s: %w", fileURL, err)
+				err = fmt.Errorf("matching file URL %s: %w", fileURL, matchErr)
 				return
 			}
 
