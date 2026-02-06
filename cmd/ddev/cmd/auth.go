@@ -9,7 +9,7 @@ import (
 var AuthCmd = &cobra.Command{
 	Use:     "auth [command]",
 	Short:   "A collection of authentication commands",
-	Example: `ddev auth ssh`,
+	Example: `"ddev auth ssh" or "ddev auth add-on"`,
 	Run: func(cmd *cobra.Command, _ []string) {
 		err := cmd.Usage()
 		util.CheckErr(err)
