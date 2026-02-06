@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -167,8 +168,7 @@ func DownloadFileExtended(destPath string, fileURL string, progressBar bool, sha
 			Verbose("No auth headers added for %s", fileURL)
 		}
 
-		// TODO: Is okay to log auth headers here?
-		Verbose("Auth headers: %v", authHeaders)
+		Verbose("Auth headers: %v", maps.Keys(authHeaders))
 
 		for key, value := range authHeaders {
 			req.Header.Set(key, value)
