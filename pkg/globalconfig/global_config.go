@@ -693,7 +693,8 @@ func WriteAuthConfig(auth *AuthConfig) error {
 		return err
 	}
 
-	err = os.WriteFile(GetAuthConfigPath(), authBytes, 0644)
+	// Make sure only the user can read the file.
+	err = os.WriteFile(GetAuthConfigPath(), authBytes, 0600)
 	if err != nil {
 		return err
 	}
